@@ -2,6 +2,7 @@ version: '2'
 services:
   demoapp:
     build: ./
+    container_name: demoapp
     environment:
       - _JAVA_OPTIONS=-Xmx1048m -Xms256m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/postgres
@@ -15,6 +16,7 @@ services:
     links:
       - database:database
   database:
+    container_name: demoapp_db
     image: postgres:10
     environment:
       - POSTGRES_USER=postgres
