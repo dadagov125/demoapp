@@ -5,7 +5,6 @@ import com.example.demo.domain.Notification;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
@@ -54,11 +53,6 @@ class DemoApplicationTests {
 
     }
 
-    @AfterEach
-    public void setDown() {
-        ResponseEntity<String> response = rest.exchange(api + "/clean", HttpMethod.GET, null, String.class);
-    }
-
     @Test
     void createComments_Test() throws IOException, ExecutionException, InterruptedException {
 
@@ -70,23 +64,32 @@ class DemoApplicationTests {
 
         long totalTimeNano = endTime - startTime;
 
-        double totalTimeSec = (double) totalTimeNano / 1_000_000_000;
-        System.out.println(totalTimeSec);
+        long totalTimeSec = totalTimeNano / 1_000_000_000;
 
         assertNotNull(comments);
 
 
         ResponseEntity<? extends PagedResult<Comment>> commentPage = rest.exchange(api + "/comments?page=0&size=" + commentsCount, HttpMethod.GET, null, commentPageReference);
-        assertEquals(commentPage.getStatusCode(), HttpStatus.OK);
-        assertNotNull(commentPage.getBody().getContent());
-        assertEquals(commentPage.getBody().getContent().size(), comments.size());
+
 
         ResponseEntity<? extends PagedResult<Notification>> notificationPage = rest.exchange(api + "/notifications?page=0&size=" + commentsCount, HttpMethod.GET, null, notificationPageReference);
+
+        int commentsSize = comments.size();
+
+        int commentsPageSize = commentPage.getBody().getContent().size();
+
+        int notificationsPageSize = notificationPage.getBody().getContent().size();
+
+        assertEquals(commentPage.getStatusCode(), HttpStatus.OK);
+        assertNotNull(commentPage.getBody().getContent());
+        assertEquals(commentsPageSize, commentsSize);
+
+
         assertEquals(notificationPage.getStatusCode(), HttpStatus.OK);
         assertNotNull(notificationPage.getBody().getContent());
-        assertEquals(notificationPage.getBody().getContent().size(), comments.size());
+        assertEquals(notificationsPageSize, commentsSize);
 
-        assertEquals(notificationPage.getBody().getContent().size(), commentPage.getBody().getContent().size());
+        assertEquals(notificationsPageSize, commentsPageSize);
 
         comments.forEach(c -> {
             assertTrue(notificationPage.getBody().getContent().stream().anyMatch(n -> n.getComment().getId().equals(c.getId())));
@@ -95,12 +98,20 @@ class DemoApplicationTests {
         });
 
 
+        long createdCommentsPercent = commentsPageSize * 100 / commentsCount;
+
+        long createdNotifiesPercent = notificationsPageSize * 100 / commentsCount;
+
+        System.out.println("Comments creations seconds: " + totalTimeSec + "s");
+        System.out.println("Comments success creation percent: " + createdCommentsPercent + "%");
+        System.out.println("Notifications success creation percent: " + createdNotifiesPercent + "%");
+
     }
 
     List<Comment> createCommentsParallel(long commentCount) throws ExecutionException, InterruptedException {
         List<Long> list = LongStream.rangeClosed(1, commentCount).boxed().collect(Collectors.toList());
         int cores = Runtime.getRuntime().availableProcessors();
-        ForkJoinPool pool = new ForkJoinPool(cores * 2);
+        ForkJoinPool pool = new ForkJoinPool(cores);
 
         ForkJoinTask<List<Comment>> fork = pool.submit(() -> list.parallelStream().map((v) -> createComment(v.toString())).filter(Objects::nonNull)
                 .collect(Collectors.toList()));

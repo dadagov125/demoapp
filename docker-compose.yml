@@ -1,0 +1,23 @@
+version: '2'
+services:
+  demoapp:
+    build: ./
+    environment:
+      - _JAVA_OPTIONS=-Xmx1048m -Xms256m
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=qwerty
+      - SERVER_PORT=8080
+    ports:
+      - 8080:8080
+    depends_on:
+      - database
+    links:
+      - database:database
+  database:
+    image: postgres:10
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=qwerty
+    ports:
+      - 5433:5432
